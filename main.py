@@ -1,5 +1,6 @@
 from bs4 import BeautifulSoup
 import requests
+import json
 
 class profit_line_parser:
     def __init__(self) -> None:
@@ -37,30 +38,62 @@ class profit_line_parser:
             recommended_action = page_useful_content.get_text()
             
             recommended_action = recommended_action.split('\xa0')
-            recommended_action = recommended_action[1]
-            recommended_action_end = recommended_action.index('\r\n')
-            recommended_action = recommended_action[0:recommended_action_end]
+            try:
+                recommended_action = recommended_action[1]
+                recommended_action_end = recommended_action.index('\r\n')
+                recommended_action = recommended_action[0:recommended_action_end]
+            except:
+                recommended_action = "Hiba"
 
             self.list_of_asset[i]['status'] = recommended_action
         return
 
     def print_datas(self):
         for i in range(len(self.list_of_asset)):
-            print('Eszközalap: ' + self.list_of_asset[i]['name'])
-            print('Ajánlás: ' + self.list_of_asset[i]['status'])
-
-            if self.list_of_asset[i]['status'] == 'Vétel':
-                print('🟩🟩🟩🟩🟩🟩')
-            elif self.list_of_asset[i]['status'] == 'Tartás':
-                print('🟨🟨🟨🟨🟨🟨')
-            else:
-                print('🟥🟥🟥🟥🟥🟥')
-            print
-            print('\n')
+            if self.list_of_asset[i]['status'] != 'Hiba':                
+                print('Eszközalap: ' + self.list_of_asset[i]['name'])
+                print('Ajánlás: ' + self.list_of_asset[i]['status'])
+                print('\n')
+    
+    def get_list_of_assets(self):
+        return self.list_of_asset
         
+def read_json():
+    try:
+        with open('last_advice.json', 'r') as f:
+            json_file = f.read()
+            return json.loads(json_file)
+    except:
+        print('WARNING: last_advice.json nem létezik.')
+
+def compare_old_and_new_json(new_json, old_json):
+    for new_element in new_json:
+        for old_element in old_json:
+            if new_element['name'] == old_element['name']:
+                if new_element['status'] != old_element['status']:
+                    print(f"{new_element['name']} állapota megváltozott.")
+                    print(f"Régi: {old_element['status']} Új: {new_element['status']}")
+        
+def process_json(list_of_asset):
+    for element in list_of_asset:
+        del element['iterator']
+        del element['link']
+    return list_of_asset
+
+def write_json(list_of_asset):
+    with open('last_advice.json', 'w') as f:
+        f.write(json.dumps(list_of_asset))
+        return
 
 if __name__ == "__main__":
-    asd = profit_line_parser()
-    asd.update_datas()
-    asd.print_datas()
+    parser_instance = profit_line_parser()
+    parser_instance.update_datas()
+    # parser_instance.print_datas()
+    new_json = process_json(parser_instance.get_list_of_assets())
+    
+    json_file = read_json()
+    if json_file != None:
+        compare_old_and_new_json(new_json=new_json, old_json=json_file)
+        
+    write_json(new_json)
     exit()
